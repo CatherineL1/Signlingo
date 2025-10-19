@@ -1,1 +1,42 @@
-
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Labeler – SignLingo</title>
+  <style>body{background:#222;color:#eee;font-family:monospace}button{margin:.2em;padding:.4em}</style>
+</head>
+<body>
+  <video id="v" autoplay playsinline></video>
+  <br><span>Press any letter key (A–Y, no J/Z) to save landmarks → CSV</span>
+  <br><button onclick="download()">Download CSV</button>
+  <pre id="log"></pre>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.min.js"></script>
+  <script>
+    const hands = new Hands({locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${f}`});
+    hands.setOptions({maxNumHands:1,modelComplexity:0,minDetectionConfidence:.7,minTrackingConfidence:.7});
+    const v=document.getElementById('v');
+    const cam = new Camera(v,{onFrame:()=>hands.send({image:v}),width:320,height:240});
+    cam.start(); hands.onResults(r=>{window.last=r.multiHandLandmarks?.[0]||null;});
+    window.addEventListener('keydown',e=>{
+      if(!last){log('No hand');return;}
+      const label = e.key.toUpperCase();
+      if(!'ABCDEFGHIKLMNOPQRSTUVWXY'.includes(label))return;
+      const vec = norm21(last);
+      csv.push([label,...vec].join(','));
+      log('saved '+label+'  total '+csv.length);
+    });
+    let csv=[['label',...Array(63).fill(0).map((_,i)=>`x${i}`)]];
+    function norm21(l){
+      const w=l[0], ref=Math.hypot(l[0].x-l[9].x,l[0].y-l[9].y);
+      return l.flatMap(p=>[(p.x-w.x)/ref,(p.y-w.y)/ref,(p.z-w.z)/ref]);
+    }
+    function log(x){document.getElementById('log').textContent=x;}
+    function download(){
+      const blob = new Blob([csv.join('\n')],{type:'text/csv'});
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download='landmarks.csv'; a.click();
+    }
+  </script>
+</body>
+</html>
